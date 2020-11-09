@@ -1,6 +1,6 @@
 # web_service
 
-Веб-сервис на базе Flask для Python 3
+Веб-сервис на базе Flask для Python 3.7
 
 ## Установка
 
