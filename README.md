@@ -4,7 +4,11 @@
 
 ## Установка
 
-`pip install -r requirements.txt`
+```
+git clone https://github.com/sedrew/web_service.git
+cd web_service
+pip install -r requirements.txt
+```
 
 создание базы данных
 ```
