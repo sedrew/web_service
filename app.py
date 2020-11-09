@@ -8,7 +8,6 @@ db = SQLAlchemy(app)
 
 
 class User(db.Model):
-    """User (поля name, last_name, email, role (author, editor), state (active, inactive, deleted))"""
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), nullable=False)
     last_name = db.Column(db.String(50), nullable=False)
@@ -18,13 +17,13 @@ class User(db.Model):
 
 
 class Post(db.Model):
-    """Post (поля title, description, author (ссылка на таблицу User)."""
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text, nullable=False)
     author = db.Column(db.Integer, db.ForeignKey('user.id'))
 
 
+# Валидация параметров в POST запросе
 def must_not_be_blank(data):
     if not data:
         raise ValidationError("Data not provided.")
@@ -60,6 +59,7 @@ class PostSchema(Schema):
     author = fields.Int(required=True, validate=must_not_be_blank)
 
 
+# Валидация параметров в GET запросе
 def paramtres_order_by(data):
     if not data in ['name', 'last_name', 'email']:
         raise ValidationError("Expected name or last_name or email")
@@ -74,15 +74,15 @@ class PrUserSchema(Schema):
     email = fields.Email()
 
     @pre_load
-    def default_parametres(self, data):
+    def default_parametres(self, data, **kwargs):
         limit = data.get("limit")
         offset = data.get("offset")
         if limit is None:
             limit = 5
         if offset is None:
             offset = 0
-        data["offset"] = limit
-        data["limit"] = offset
+        data["limit"] = limit
+        data["offset"] = offset
         return data
 
 
@@ -91,6 +91,18 @@ class PrPostSchema(Schema):
     limit = fields.Int()
     order_by = fields.Str(validate=paramtres_order_by)
     author = fields.Int()
+
+    @pre_load
+    def default_parametres(self, data, **kwargs):
+        limit = data.get("limit")
+        offset = data.get("offset")
+        if limit is None:
+            limit = 5
+        if offset is None:
+            offset = 0
+        data["limit"] = limit
+        data["offset"] = offset
+        return data
 
 
 paramtres_post_schema = PrPostSchema()
@@ -103,21 +115,21 @@ post_schema = PostSchema()
 def get_users():
     """
     @api {get} /api/users
-    @apiParam {String} [order_by]
-    @apiParam {Integer} [id]
-    @apiParam {String} [email]
-    @apiParam {String} [name_substr]
-    @apiParam {Integer} [limit=5]
-    @apiParam {Integer} [offset=0]
+    @apiParam {String} [order_by] сортировка по полю (name, last_name, email)
+    @apiParam {Integer} [id] получение элемента по идентификатору
+    @apiParam {String} [email] фильтр по полю email
+    @apiParam {String} [name_substr] фильтр по полю name (совпадение по подстроке)
+    @apiParam {Integer} [limit=5] количество возвращаемых элементов (для пагинации)
+    @apiParam {Integer} [offset=0] Количество пропускаемых элементов (для пагинации)
     """
     if not request.is_json:
         return {"message": "No input data provided"}, 400
+    elif len(request.json) == 0:
+        return {"message": "Data not provided."}, 422
     try:
         dict_params = paramtres_user_schema.load(request.json)
     except ValidationError as err:
         return err.messages, 422
-    if len(dict_params) == 0:
-        return {"message": "Data not provided."}, 422
     total_count = User.query
     items = None
     if 'order_by' in dict_params:
@@ -151,11 +163,11 @@ def get_users():
 def new_users():
     """
     @api {post} /api/users
-    @apiParam {String} name
-    @apiParam {String} last_name
-    @apiParam {String} email
-    @apiParam {String} state
-    @apiParam {String} role
+    @apiParam {String} name Имя
+    @apiParam {String} last_name Фамилия
+    @apiParam {String} email электронная почта
+    @apiParam {String} state один из параметров: active, inactive, deleted
+    @apiParam {String} role author или editor
     """
     if not request.is_json:
         return {"message": "No input data provided"}, 400
@@ -172,31 +184,32 @@ def new_users():
     else:
         return {"message": "This email address is already in use"}, 422
     result = user_schema.dump(User.query.get(user.id))
-    return {"message": "Created new user.", "post": result}
+    return {"message": "Created new user.", "user": result}
 
 
 @app.route('/api/posts', methods=['GET'])
 def get_posts():
     """
     @api {get} /api/posts
-    @apiParam {String} [order_by]
-    @apiParam {Integer} [author]
-    @apiParam {Integer} [limit=5]
-    @apiParam {Integer} [offset=0]
+    @apiParam {String} [order_by] сортировка по полю (name, last_name, email)
+    @apiParam {Integer} [author] фильтр по полю author
+    @apiParam {Integer} [limit=5] количество возвращаемых элементов (для пагинации)
+    @apiParam {Integer} [offset=0] количество пропускаемых элементов (для пагинации)
     """
     if not request.is_json:
         return {"message": "No input data provided"}, 400
+    elif len(request.json) == 0:
+        return {"message": "Data not provided."}, 422
     try:
         dict_params = paramtres_post_schema.load(request.json)
     except ValidationError as err:
         return err.messages, 422
-    if len(dict_params) == 0:
-        return {"message": "Data not provided."}, 422
+
     total_count = db.session.query(User, Post).join(Post, User.id == Post.author)
     items = None
     if 'order_by' in dict_params:
         total_count = total_count.order_by(User.__dict__[dict_params['order_by']])
-        if items is None and ('limit' in dict_params or 'offset' in dict_params):
+        if items is None:
             items = total_count.order_by(User.__dict__[dict_params['order_by']])
     if 'author' in dict_params:
         total_count = total_count.filter_by(author=dict_params['author'])
@@ -222,9 +235,9 @@ def get_posts():
 def new_posts():
     """
     @api {post} /api/posts
-    @apiParam {String} title
-    @apiParam {String} description
-    @apiParam {Integer} author
+    @apiParam {String} title загаловок
+    @apiParam {String} description описание
+    @apiParam {Integer} author id автора
     """
     if not request.is_json:
         return {"message": "No input data provided"}, 400
@@ -244,4 +257,4 @@ def new_posts():
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=False)
