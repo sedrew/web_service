@@ -15,8 +15,10 @@ pip install -r requirements.txt
 python
 from app import db
 db.create_all()
+exit()
 ```
 Создание популяции в БД
+
 `python create_population.py`
 
 
