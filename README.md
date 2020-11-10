@@ -108,39 +108,39 @@ import requests
 
 GET - /api/users  
 
-`requests.get('http://localhost:5000/api/users', json={"limit":2}).json()`
+`requests.get('http://localhost:5000/api/users?limit=2&name_substr=&order_by=-name').json()`
 
 Ответ
 ```json
 {
     "items": [
         {
-            "email": "Sapagov.Serega@mail.ru",
-            "id": 1,
-            "last_name": "Sapagov",
-            "name": "Serega",
-            "role": "editor",
+            "email": "28a@7m5a5il.r66u",
+            "id": 19,
+            "last_name": "s",
+            "name": "sfs",
+            "role": "author",
             "state": "active"
         },
         {
-            "email": "Salahov.Dima@gmail.com",
-            "id": 2,
-            "last_name": "Salahov",
-            "name": "Dima",
-            "role": "editor",
-            "state": "inactive"
+            "email": "28a@7m45a5il.r66u",
+            "id": 20,
+            "last_name": "s",
+            "name": "sfs",
+            "role": "author",
+            "state": "active"
         }
     ],
     "total_count": [
         {
-            "email": "Sapagov.Serega@mail.ru",
-            "id": 1,
-            "last_name": "Sapagov",
-            "name": "Serega",
-            "role": "editor",
+            "email": "28a@7m5a5il.r66u",
+            "id": 19,
+            "last_name": "s",
+            "name": "sfs",
+            "role": "author",
             "state": "active"
         },
-        ....
+
  ```
 
 POST - /api/posts
@@ -162,6 +162,8 @@ POST - /api/posts
 #### Через Postman
 
 POST - /api/users
+
+###### Только для post запроса
 
 В Headers выставить параметры `KEY` - `Content-Type`, `VALUE` - `application/json`
 
