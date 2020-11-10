@@ -177,7 +177,7 @@ def get_posts():
             items = items.order_by(getattr(User, order_by))
     if author:
         total_count = total_count.filter_by(author=author)
-        items = items.filter_by(author=author)
+        items = total_count.filter_by(author=author)
     if limit:
         items = items.limit(limit)
     if offset:
