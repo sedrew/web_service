@@ -66,7 +66,13 @@ post_schema = PostSchema()
 @app.route('/api/users', methods=['GET'])
 def get_users():
     """
+    @apiDefine admin User access only
+    This optional description belong to to the group admin.
+    """
+    """
     @api {get} /api/users
+    @apiName GetUser
+    @apiGroup User
 
     @apiParam {String} [order_by] сортировка по полю (name, last_name, email)
     @apiParam {Integer} [id] получение элемента по идентификатору
@@ -120,6 +126,8 @@ def get_users():
 def new_users():
     """
     @api {post} /api/users
+    @apiName GetUser
+    @apiGroup User
 
     @apiParam {String} name Имя
     @apiParam {String} last_name Фамилия
@@ -149,6 +157,8 @@ def new_users():
 def get_posts():
     """
     @api {get} /api/posts
+    @apiName GetPost
+    @apiGroup Post
 
     @apiParam {String} [order_by] сортировка по полю (name, last_name, email)
     @apiParam {Integer} [author] фильтр по полю author
@@ -193,6 +203,8 @@ def get_posts():
 def new_posts():
     """
     @api {post} /api/posts
+    @apiName GetPost
+    @apiGroup Post
 
     @apiParam {String} title загаловок
     @apiParam {String} description описание

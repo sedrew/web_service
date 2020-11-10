@@ -1,0 +1,9 @@
+{
+  "name": "web-cervice",
+  "version": "0.0.1",
+  "description": "web-cervice basic example",
+  "header": {
+    "title": "Readme",
+    "filename": "README.md"
+  }
+}
