@@ -133,9 +133,9 @@ def get_users():
     total_count = User.query
     items = None
     if 'order_by' in dict_params:
-        total_count = total_count.order_by(User.__dict__[dict_params['order_by']])
+        total_count = total_count.order_by(getattr(User, dict_params['order_by']))
         if items is None:
-            items = total_count.order_by(User.__dict__[dict_params['order_by']])
+            items = total_count.order_by(getattr(User, dict_params['order_by']))
     if 'id' in dict_params:
         total_count = total_count.get(dict_params['id'])
         return jsonify(user_schema.dump(total_count))
@@ -196,33 +196,45 @@ def get_posts():
     @apiParam {Integer} [limit=5] количество возвращаемых элементов (для пагинации)
     @apiParam {Integer} [offset=0] количество пропускаемых элементов (для пагинации)
     """
-    if not request.is_json:
-        return {"message": "No input data provided"}, 400
-    elif len(request.json) == 0:
-        return {"message": "Data not provided."}, 422
-    try:
-        dict_params = paramtres_post_schema.load(request.json)
-    except ValidationError as err:
-        return err.messages, 422
+    print(request.args)
+    # if not request.is_json:
+    #     return {"message": "No input data provided"}, 400
+    # elif len(request.json) == 0:
+    #     return {"message": "Data not provided."}, 422
+    # try:
+    #     dict_params = paramtres_post_schema.load(request.json)
+    # except ValidationError as err:
+    #     return err.messages, 422
+
+    author = request.args.get("author", "")
+    limit = request.args.get("limit", default=5, type=int)
+    offset = request.args.get("offset", default=0, type=int)
+
+    order_by_choices = ['name', 'last_name', 'email']
+    order_by = request.args.get("order_by", "")
+    is_descending = False
+    if order_by.startswith("-"):
+        is_descending = True
+        order_by = order_by[1:]
 
     total_count = db.session.query(User, Post).join(Post, User.id == Post.author)
     items = None
-    if 'order_by' in dict_params:
-        total_count = total_count.order_by(User.__dict__[dict_params['order_by']])
+    if order_by in order_by_choices:
+        total_count = total_count.order_by(getattr(User, order_by))
         if items is None:
-            items = total_count.order_by(User.__dict__[dict_params['order_by']])
-    if 'author' in dict_params:
-        total_count = total_count.filter_by(author=dict_params['author'])
-    if 'limit' in dict_params:
+            items = total_count.order_by(getattr(User, order_by))
+    if author:
+        total_count = total_count.filter_by(author=author)
+    if limit:
         if items is None:
-            items = total_count.limit(dict_params['limit'])
+            items = total_count.limit(limit)
         else:
-            items = items.limit(dict_params['limit'])
-    if 'offset' in dict_params:
+            items = items.limit(limit)
+    if offset:
         if items is None:
-            items = total_count.offset(dict_params['offset'])
+            items = total_count.offset(offset)
         else:
-            items = items.offset(dict_params['offset'])
+            items = items.offset(offset)
     if items is not None:
         items = [el.Post for el in items.all()]
     total_count = [el.Post for el in total_count.all()]
