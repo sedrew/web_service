@@ -66,10 +66,6 @@ post_schema = PostSchema()
 @app.route('/api/users', methods=['GET'])
 def get_users():
     """
-    @apiDefine admin User access only
-    This optional description belong to to the group admin.
-    """
-    """
     @api {get} /api/users
     @apiName GetUser
     @apiGroup User
@@ -181,10 +177,10 @@ def get_posts():
     if order_by in order_by_choices:
         if is_descending:
             total_count = total_count.order_by(getattr(User, order_by).desc())
-            items = items.order_by(getattr(User, order_by))
+            items = total_count.order_by(getattr(User, order_by))
         else:
             total_count = total_count.order_by(getattr(User, order_by))
-            items = items.order_by(getattr(User, order_by))
+            items = total_count.order_by(getattr(User, order_by))
     if author:
         total_count = total_count.filter_by(author=author)
         items = total_count.filter_by(author=author)
