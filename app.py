@@ -59,54 +59,6 @@ class PostSchema(Schema):
     author = fields.Int(required=True, validate=must_not_be_blank)
 
 
-# Валидация параметров в GET запросе
-def paramtres_order_by(data):
-    if not data in ['name', 'last_name', 'email']:
-        raise ValidationError("Expected name or last_name or email")
-
-
-class PrUserSchema(Schema):
-    id = fields.Int()
-    offset = fields.Int()
-    limit = fields.Int()
-    order_by = fields.Str(validate=paramtres_order_by)
-    name_substr = fields.Str()
-    email = fields.Email()
-
-    @pre_load
-    def default_parametres(self, data, **kwargs):
-        limit = data.get("limit")
-        offset = data.get("offset")
-        if limit is None:
-            limit = 5
-        if offset is None:
-            offset = 0
-        data["limit"] = limit
-        data["offset"] = offset
-        return data
-
-
-class PrPostSchema(Schema):
-    offset = fields.Int()
-    limit = fields.Int()
-    order_by = fields.Str(validate=paramtres_order_by)
-    author = fields.Int()
-
-    @pre_load
-    def default_parametres(self, data, **kwargs):
-        limit = data.get("limit")
-        offset = data.get("offset")
-        if limit is None:
-            limit = 5
-        if offset is None:
-            offset = 0
-        data["limit"] = limit
-        data["offset"] = offset
-        return data
-
-
-paramtres_post_schema = PrPostSchema()
-paramtres_user_schema = PrUserSchema()
 user_schema = UserSchema()
 post_schema = PostSchema()
 
@@ -115,6 +67,7 @@ post_schema = PostSchema()
 def get_users():
     """
     @api {get} /api/users
+
     @apiParam {String} [order_by] сортировка по полю (name, last_name, email)
     @apiParam {Integer} [id] получение элемента по идентификатору
     @apiParam {String} [email] фильтр по полю email
@@ -122,38 +75,42 @@ def get_users():
     @apiParam {Integer} [limit=5] количество возвращаемых элементов (для пагинации)
     @apiParam {Integer} [offset=0] Количество пропускаемых элементов (для пагинации)
     """
-    if not request.is_json:
-        return {"message": "No input data provided"}, 400
-    elif len(request.json) == 0:
-        return {"message": "Data not provided."}, 422
-    try:
-        dict_params = paramtres_user_schema.load(request.json)
-    except ValidationError as err:
-        return err.messages, 422
+    id = request.args.get("author", type=int)
+    limit = request.args.get("limit", default=5, type=int)
+    offset = request.args.get("offset", default=0, type=int)
+    email = request.args.get("email", "")
+    name_substr = request.args.get("name_substr", "")
+
+    order_by_choices = ['name', 'last_name', 'email']
+    order_by = request.args.get("order_by", "")
+    is_descending = False
+    if order_by.startswith("-"):
+        is_descending = True
+        order_by = order_by[1:]
+
     total_count = User.query
-    items = None
-    if 'order_by' in dict_params:
-        total_count = total_count.order_by(getattr(User, dict_params['order_by']))
-        if items is None:
-            items = total_count.order_by(getattr(User, dict_params['order_by']))
-    if 'id' in dict_params:
-        total_count = total_count.get(dict_params['id'])
+    items = total_count
+    if order_by in order_by_choices:
+        if is_descending:
+            total_count = total_count.order_by(getattr(User, order_by).desc())
+            items = total_count.order_by(getattr(User, order_by).desc())
+        else:
+            total_count = total_count.order_by(getattr(User, order_by))
+            items = total_count.order_by(getattr(User, order_by))
+    if id:
+        total_count = total_count.get(id)
         return jsonify(user_schema.dump(total_count))
-    if 'email' in dict_params:
-        total_count = total_count.filter_by(email=dict_params['email'])
-    if 'name_substr' in dict_params:
-        search = "%{}%".format(dict_params['name_substr'])
+    if email:
+        total_count = total_count.filter_by(email=email)
+        items = total_count.filter_by(email=email)
+    if name_substr:
+        search = "%{}%".format(name_substr)
         total_count = total_count.filter(User.name.like(search))
-    if 'limit' in dict_params:
-        if items is None:
-            items = total_count.limit(dict_params['limit'])
-        else:
-            items = items.limit(dict_params['limit'])
-    if 'offset' in dict_params:
-        if items is None:
-            items = total_count.offset(dict_params['offset'])
-        else:
-            items = items.offset(dict_params['offset'])
+        items = total_count.filter(User.name.like(search))
+    if limit:
+        items = items.limit(limit)
+    if offset:
+        items = items.offset(offset)
     result = {"total_count": user_schema.dump(total_count, many=True),
               "items": user_schema.dump(items, many=True)}
     return jsonify(result)
@@ -163,6 +120,7 @@ def get_users():
 def new_users():
     """
     @api {post} /api/users
+
     @apiParam {String} name Имя
     @apiParam {String} last_name Фамилия
     @apiParam {String} email электронная почта
@@ -191,22 +149,13 @@ def new_users():
 def get_posts():
     """
     @api {get} /api/posts
+
     @apiParam {String} [order_by] сортировка по полю (name, last_name, email)
     @apiParam {Integer} [author] фильтр по полю author
     @apiParam {Integer} [limit=5] количество возвращаемых элементов (для пагинации)
     @apiParam {Integer} [offset=0] количество пропускаемых элементов (для пагинации)
     """
-    print(request.args)
-    # if not request.is_json:
-    #     return {"message": "No input data provided"}, 400
-    # elif len(request.json) == 0:
-    #     return {"message": "Data not provided."}, 422
-    # try:
-    #     dict_params = paramtres_post_schema.load(request.json)
-    # except ValidationError as err:
-    #     return err.messages, 422
-
-    author = request.args.get("author", "")
+    author = request.args.get("author", type=int)
     limit = request.args.get("limit", default=5, type=int)
     offset = request.args.get("offset", default=0, type=int)
 
@@ -218,25 +167,22 @@ def get_posts():
         order_by = order_by[1:]
 
     total_count = db.session.query(User, Post).join(Post, User.id == Post.author)
-    items = None
+    items = total_count
     if order_by in order_by_choices:
-        total_count = total_count.order_by(getattr(User, order_by))
-        if items is None:
-            items = total_count.order_by(getattr(User, order_by))
+        if is_descending:
+            total_count = total_count.order_by(getattr(User, order_by).desc())
+            items = items.order_by(getattr(User, order_by))
+        else:
+            total_count = total_count.order_by(getattr(User, order_by))
+            items = items.order_by(getattr(User, order_by))
     if author:
         total_count = total_count.filter_by(author=author)
+        items = items.filter_by(author=author)
     if limit:
-        if items is None:
-            items = total_count.limit(limit)
-        else:
-            items = items.limit(limit)
+        items = items.limit(limit)
     if offset:
-        if items is None:
-            items = total_count.offset(offset)
-        else:
-            items = items.offset(offset)
-    if items is not None:
-        items = [el.Post for el in items.all()]
+        items = items.offset(offset)
+    items = [el.Post for el in items.all()]
     total_count = [el.Post for el in total_count.all()]
     result = {"total_count": post_schema.dump(total_count, many=True),
               "items": post_schema.dump(items, many=True)}
@@ -247,6 +193,7 @@ def get_posts():
 def new_posts():
     """
     @api {post} /api/posts
+
     @apiParam {String} title загаловок
     @apiParam {String} description описание
     @apiParam {Integer} author id автора
